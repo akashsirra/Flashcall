@@ -16,91 +16,160 @@ function setStatus(message) {
 }
 
 async function setup() {
-  try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setStatus('Push is not supported on this browser.');
-      return;
+  const onboarding = window.flashcallOnboarding;
+  const readyFlag = localStorage.getItem('flashcall_ready') === 'true';
+
+  function showOnboarding(message = '') {
+    onboarding?.gate.classList.add('visible');
+    if (message) {
+      onboarding.setupStatus.textContent = message;
     }
+  }
 
-    setStatus('Setting up Flashcall...');
+  function hideOnboarding() {
+    onboarding?.gate.classList.remove('visible');
+  }
 
-    const registration = await navigator.serviceWorker.register('/sw.js');
-
-    const permission = await Notification.requestPermission();
-
-    if (permission !== 'granted') {
-      setStatus('Notification permission denied.');
-      return;
-    }
-
-    const vapidRes = await fetch('/vapid-public-key');
-
-    if (!vapidRes.ok) {
-      throw new Error('Could not load push configuration.');
-    }
-
-    const { key } = await vapidRes.json();
-
-    if (!key) {
-      throw new Error('Missing VAPID public key.');
-    }
-
-    let subscription = await registration.pushManager.getSubscription();
-
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key)
-      });
-    }
-
-    setStatus('Getting your location...');
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-
-          const registerRes = await fetch('/register', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              subscription,
-              lat: latitude,
-              lng: longitude
-            })
-          });
-
-          const data = await registerRes.json();
-
-          if (!registerRes.ok || !data.ok) {
-            throw new Error(data.error || 'Registration failed.');
-          }
-
-          window.currentLat = latitude;
-          window.currentLng = longitude;
-
-          setStatus('Ready to receive flashes nearby.');
-        } catch (error) {
-          console.error('Registration failed:', error);
-          setStatus('Could not register this device. Please try again.');
-        }
-      },
-      (error) => {
-        console.error('Location error:', error);
-        setStatus('Location permission denied.');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 60000
+  async function initialize() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Push is not supported on this browser.');
       }
+
+      setStatus('Setting up Flashcall...');
+
+      const registration =
+        await navigator.serviceWorker.register('/sw.js');
+
+      let permission = Notification.permission;
+
+      if (permission !== 'granted') {
+        permission = await Notification.requestPermission();
+      }
+
+      if (permission !== 'granted') {
+        throw new Error('Notification permission denied.');
+      }
+
+      const vapidRes = await fetch('/vapid-public-key');
+
+      if (!vapidRes.ok) {
+        throw new Error('Could not load push configuration.');
+      }
+
+      const { key } = await vapidRes.json();
+
+      if (!key) {
+        throw new Error('Missing VAPID public key.');
+      }
+
+      let subscription =
+        await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key)
+        });
+      }
+
+      setStatus('Getting your location...');
+
+      await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              const { latitude, longitude } = pos.coords;
+
+              const registerRes = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  subscription,
+                  lat: latitude,
+                  lng: longitude
+                })
+              });
+
+              const data = await registerRes.json();
+
+              if (!registerRes.ok || !data.ok) {
+                throw new Error(
+                  data.error || 'Registration failed.'
+                );
+              }
+
+              window.currentLat = latitude;
+              window.currentLng = longitude;
+
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          },
+          reject,
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 60000
+          }
+        );
+      });
+
+      localStorage.setItem('flashcall_ready', 'true');
+      hideOnboarding();
+      setStatus('Ready to receive flashes nearby.');
+    } catch (error) {
+      console.error('Setup failed:', error);
+
+      if (onboarding?.gate.classList.contains('visible')) {
+        onboarding.setupStatus.textContent =
+          error.message || 'Could not set up Flashcall.';
+
+        onboarding.readyBtn.disabled = false;
+      } else {
+        setStatus(
+          'Flashcall setup needs attention. Tap to continue.'
+        );
+        showOnboarding();
+      }
+    }
+  }
+
+  if (!readyFlag) {
+    showOnboarding();
+    setStatus('Ready when you are.');
+
+    onboarding.readyBtn.addEventListener('click', async () => {
+      onboarding.readyBtn.disabled = true;
+      onboarding.setupStatus.textContent =
+        'Getting Flashcall ready...';
+
+      await initialize();
+    }, { once: true });
+
+    return;
+  }
+
+  // Returning users skip onboarding.
+  // Permissions are checked only when setup is actually needed.
+  if (
+    Notification.permission === 'granted' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window
+  ) {
+    await initialize();
+  } else {
+    showOnboarding(
+      'A permission needs attention before you can receive Flashes.'
     );
-  } catch (error) {
-    console.error('Setup failed:', error);
-    setStatus('Flashcall setup failed. Please refresh and try again.');
+
+    onboarding.readyBtn.addEventListener('click', async () => {
+      onboarding.readyBtn.disabled = true;
+      await initialize();
+    }, { once: true });
   }
 }
 
