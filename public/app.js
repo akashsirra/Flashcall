@@ -1,6 +1,38 @@
 const statusEl = document.getElementById('status');
 const sendBtn = document.getElementById('sendBtn');
 
+function getInstallationId() {
+  const key = 'flashcall_installation_id';
+  let id = localStorage.getItem(key);
+
+  if (!id) {
+    id = crypto.randomUUID().replace(/-/g, '');
+    localStorage.setItem(key, id);
+  }
+
+  return id;
+}
+
+const installationId = getInstallationId();
+
+function track(event, metadata = null) {
+  return fetch('/events', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      installationId,
+      event,
+      metadata
+    })
+  }).catch((error) => {
+    console.warn('Analytics event failed:', error);
+  });
+}
+
+track('app_open');
+
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -37,6 +69,7 @@ async function setup() {
       }
 
       setStatus('Setting up Flashcall...');
+    track('onboarding_start');
 
       const registration =
         await navigator.serviceWorker.register('/sw.js');
@@ -121,6 +154,8 @@ async function setup() {
       localStorage.setItem('flashcall_ready', 'true');
       hideOnboarding();
       setStatus('Ready to receive flashes nearby.');
+          track('location_enabled');
+          track('onboarding_complete');
     } catch (error) {
       console.error('Setup failed:', error);
 
@@ -237,6 +272,7 @@ sendBtn.addEventListener('click', async () => {
     setStatus(
       `Sent to ${data.sent} of ${data.targeted} nearby people!`
     );
+    track('flash_sent', { sent: data.sent, targeted: data.targeted });
 
     if (data.removed > 0) {
       console.log(`Removed ${data.removed} expired push subscription(s).`);

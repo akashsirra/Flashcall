@@ -31,8 +31,82 @@ const FLASH_THEMES = new Set([
   'clean'
 ]);
 
+const ANALYTICS_EVENTS = new Set([
+  'app_open',
+  'onboarding_complete',
+  'push_enabled',
+  'location_enabled',
+  'flash_sent',
+  'flash_opened',
+  'flash_expired'
+]);
+
 app.get('/vapid-public-key', (req, res) => {
   res.json({ key: process.env.VAPID_PUBLIC_KEY });
+});
+
+// Record a minimal anonymous product event.
+app.post('/events', async (req, res) => {
+  try {
+    const { installationId, event, metadata } = req.body || {};
+
+    if (
+      typeof installationId !== 'string' ||
+      !/^[a-zA-Z0-9_-]{16,128}$/.test(installationId) ||
+      typeof event !== 'string' ||
+      !ANALYTICS_EVENTS.has(event)
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_EVENT'
+      });
+    }
+
+    let safeMetadata = null;
+
+    if (metadata !== undefined && metadata !== null) {
+      if (
+        typeof metadata !== 'object' ||
+        Array.isArray(metadata)
+      ) {
+        return res.status(400).json({
+          ok: false,
+          error: 'INVALID_METADATA'
+        });
+      }
+
+      const serialized = JSON.stringify(metadata);
+
+      if (serialized.length > 2000) {
+        return res.status(400).json({
+          ok: false,
+          error: 'INVALID_METADATA'
+        });
+      }
+
+      safeMetadata = metadata;
+    }
+
+    await pool.query(
+      `INSERT INTO events
+       (installation_id, event, metadata)
+       VALUES ($1, $2, $3)`,
+      [
+        installationId,
+        event,
+        safeMetadata
+      ]
+    );
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Event recording failed:', error);
+
+    return res.status(500).json({
+      ok: false,
+      error: 'EVENT_FAILED'
+    });
+  }
 });
 
 // Register or update a user's push subscription + location
