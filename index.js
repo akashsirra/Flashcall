@@ -84,32 +84,120 @@ app.post('/register', async (req, res) => {
 
 // Send a flash broadcast to nearby users
 app.post('/flash', async (req, res) => {
-  const { lat, lng, message, minutes } = req.body;
-  const radiusKm = 5;
-  const expiresAt = new Date(Date.now() + minutes * 60000);
+  try {
+    const { lat, lng, message, minutes } = req.body;
 
-  const nearby = await pool.query(
-    `SELECT * FROM users WHERE
-     (6371 * acos(cos(radians($1)) * cos(radians(last_lat)) *
-     cos(radians(last_lng) - radians($2)) + sin(radians($1)) *
-     sin(radians(last_lat)))) < $3`,
-    [lat, lng, radiusKm]
-  );
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    const duration = Number(minutes);
 
-  let sent = 0;
-  for (const user of nearby.rows) {
-    try {
-      await webpush.sendNotification(
-        user.push_subscription,
-        JSON.stringify({ message, expiresAt })
-      );
-      sent++;
-    } catch (err) {
-      console.error('Push failed for user', user.id, err.message);
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_LOCATION'
+      });
     }
-  }
 
-  res.json({ sent, expiresAt });
+    if (
+      typeof message !== 'string' ||
+      message.trim().length === 0 ||
+      message.length > 100
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_MESSAGE'
+      });
+    }
+
+    if (![5, 15, 30, 60].includes(duration)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_DURATION'
+      });
+    }
+
+    const radiusKm = 5;
+    const expiresAt = new Date(Date.now() + duration * 60000);
+
+    const nearby = await pool.query(
+      `SELECT id, push_subscription, subscription_endpoint
+       FROM users
+       WHERE last_lat IS NOT NULL
+         AND last_lng IS NOT NULL
+         AND (
+           6371 * acos(
+             LEAST(
+               1,
+               GREATEST(
+                 -1,
+                 cos(radians($1)) * cos(radians(last_lat)) *
+                 cos(radians(last_lng) - radians($2)) +
+                 sin(radians($1)) * sin(radians(last_lat))
+               )
+             )
+           )
+         ) < $3`,
+      [latitude, longitude, radiusKm]
+    );
+
+    let sent = 0;
+    let removed = 0;
+
+    for (const user of nearby.rows) {
+      try {
+        await webpush.sendNotification(
+          user.push_subscription,
+          JSON.stringify({
+            message: message.trim(),
+            expiresAt
+          })
+        );
+
+        sent++;
+      } catch (err) {
+        console.error(
+          'Push failed for user',
+          user.id,
+          'status:',
+          err.statusCode || 'unknown',
+          err.message
+        );
+
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          const deleted = await pool.query(
+            `DELETE FROM users
+             WHERE subscription_endpoint = $1
+             RETURNING id`,
+            [user.subscription_endpoint]
+          );
+
+          removed += deleted.rowCount;
+        }
+      }
+    }
+
+    return res.json({
+      ok: true,
+      sent,
+      removed,
+      targeted: nearby.rows.length,
+      expiresAt
+    });
+  } catch (error) {
+    console.error('Flash failed:', error);
+
+    return res.status(500).json({
+      ok: false,
+      error: 'FLASH_FAILED'
+    });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
