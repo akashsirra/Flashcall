@@ -1,11 +1,11 @@
-const express = require('express');
-const cors = require('cors');
+with open('index.js', 'r') as f:
+    content = f.read()
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+old = """app.get('/', (req, res) => {
+  res.send('Flashcall server is alive');
+});"""
 
-require('dotenv').config({ path: '.env.development.local' });
+new = """require('dotenv').config({ path: '.env.development.local' });
 const { Pool } = require('pg');
 const webpush = require('web-push');
 
@@ -62,9 +62,11 @@ app.post('/flash', async (req, res) => {
   }
 
   res.json({ sent, expiresAt });
-});
+});"""
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Flashcall running on port ${PORT}`);
-});
+content = content.replace(old, new)
+
+with open('index.js', 'w') as f:
+    f.write(content)
+
+print("Patched index.js")
