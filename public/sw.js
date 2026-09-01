@@ -11,7 +11,10 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const expiresAt = event.notification.data.expiresAt;
+  const message = event.notification.body;
+  const url = `/flash.html?message=${encodeURIComponent(message)}&expiresAt=${encodeURIComponent(expiresAt)}`;
   event.waitUntil(
-    clients.openWindow('/')
+    clients.openWindow(url)
   );
 });
