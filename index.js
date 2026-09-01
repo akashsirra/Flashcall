@@ -24,6 +24,13 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
+const FLASH_THEMES = new Set([
+  'night',
+  'heat',
+  'wave',
+  'clean'
+]);
+
 app.get('/vapid-public-key', (req, res) => {
   res.json({ key: process.env.VAPID_PUBLIC_KEY });
 });
@@ -85,7 +92,7 @@ app.post('/register', async (req, res) => {
 // Send a flash broadcast to nearby users
 app.post('/flash', async (req, res) => {
   try {
-    const { lat, lng, message, minutes } = req.body;
+    const { lat, lng, message, minutes, theme } = req.body;
 
     const latitude = Number(lat);
     const longitude = Number(lng);
@@ -123,6 +130,15 @@ app.post('/flash', async (req, res) => {
       });
     }
 
+    const flashTheme = theme == null || theme === '' ? 'night' : theme;
+
+    if (typeof flashTheme !== 'string' || !FLASH_THEMES.has(flashTheme)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_THEME'
+      });
+    }
+
     const radiusKm = 5;
     const expiresAt = new Date(Date.now() + duration * 60000);
 
@@ -156,7 +172,8 @@ app.post('/flash', async (req, res) => {
           user.push_subscription,
           JSON.stringify({
             message: message.trim(),
-            expiresAt
+            expiresAt,
+            theme: flashTheme
           })
         );
 

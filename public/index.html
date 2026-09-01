@@ -5,28 +5,245 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flashcall</title>
 <link rel="manifest" href="/manifest.json">
+
 <style>
-  body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 0 16px; }
-  h1 { font-size: 24px; }
-  input, select, button { width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; box-sizing: border-box; }
-  button { background: #ff3b30; color: white; border: none; border-radius: 8px; }
-  #status { margin-top: 16px; color: #555; }
+  :root {
+    --accent: #ff3b30;
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --text: #111111;
+    --muted: #666666;
+    --border: #e5e5e7;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #ff3b30, #ff7a45);
+    display: grid;
+    place-items: center;
+    color: white;
+    font-weight: 800;
+    box-shadow: 0 6px 18px rgba(255, 59, 48, 0.25);
+  }
+
+  .intro {
+    margin: 0 0 24px;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  label {
+    display: block;
+    margin: 18px 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #444;
+  }
+
+  input,
+  select,
+  button {
+    width: 100%;
+    font: inherit;
+  }
+
+  input,
+  select {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+  }
+
+  input:focus,
+  select:focus {
+    border-color: var(--accent);
+  }
+
+  .themes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .theme {
+    position: relative;
+    min-height: 82px;
+    padding: 14px;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    text-align: left;
+    cursor: pointer;
+    color: white;
+    overflow: hidden;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .theme:active {
+    transform: scale(0.98);
+  }
+
+  .theme.selected {
+    border-color: white;
+    box-shadow: 0 0 0 3px #111;
+  }
+
+  .theme-name {
+    display: block;
+    font-weight: 800;
+    font-size: 15px;
+  }
+
+  .theme-description {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    opacity: 0.8;
+  }
+
+  .theme-night {
+    background: linear-gradient(135deg, #111827, #6d28d9);
+  }
+
+  .theme-heat {
+    background: linear-gradient(135deg, #7f1d1d, #f97316);
+  }
+
+  .theme-wave {
+    background: linear-gradient(135deg, #0c4a6e, #06b6d4);
+  }
+
+  .theme-clean {
+    background: linear-gradient(135deg, #64748b, #f8fafc);
+    color: #111;
+  }
+
+  #sendBtn {
+    margin-top: 22px;
+    padding: 15px;
+    background: #111;
+    color: white;
+    border: none;
+    border-radius: 13px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  #sendBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  #status {
+    min-height: 22px;
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.4;
+  }
 </style>
 </head>
-<body>
-  <h1>⚡ Flashcall</h1>
-  <p>Send a message to everyone nearby, right now.</p>
 
-  <input type="text" id="message" placeholder="What's happening?" maxlength="100">
+<body>
+  <div class="brand">
+    <div class="brand-mark">F</div>
+    <h1>Flashcall</h1>
+  </div>
+
+  <p class="intro">
+    Send a message to everyone nearby, right now.
+  </p>
+
+  <label for="message">Your Flash</label>
+  <input
+    type="text"
+    id="message"
+    placeholder="What's happening?"
+    maxlength="100"
+    autocomplete="off"
+  >
+
+  <label>Choose the vibe</label>
+
+  <div class="themes" id="themes">
+    <button class="theme theme-night selected" type="button" data-theme="night">
+      <span class="theme-name">Night Pulse</span>
+      <span class="theme-description">The signature Flash</span>
+    </button>
+
+    <button class="theme theme-heat" type="button" data-theme="heat">
+      <span class="theme-name">Heat</span>
+      <span class="theme-description">Turn it up</span>
+    </button>
+
+    <button class="theme theme-wave" type="button" data-theme="wave">
+      <span class="theme-name">Wave</span>
+      <span class="theme-description">Ride the moment</span>
+    </button>
+
+    <button class="theme theme-clean" type="button" data-theme="clean">
+      <span class="theme-name">Clean</span>
+      <span class="theme-description">Simple & clear</span>
+    </button>
+  </div>
+
+  <label for="duration">How long?</label>
+
   <select id="duration">
     <option value="5">5 minutes</option>
     <option value="15" selected>15 minutes</option>
     <option value="30">30 minutes</option>
     <option value="60">60 minutes</option>
   </select>
+
   <button id="sendBtn">Send Flash</button>
 
   <div id="status"></div>
+
+  <script>
+    window.selectedFlashTheme = 'night';
+
+    document.querySelectorAll('.theme').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.theme').forEach((item) => {
+          item.classList.remove('selected');
+        });
+
+        button.classList.add('selected');
+        window.selectedFlashTheme = button.dataset.theme;
+      });
+    });
+  </script>
 
   <script src="/app.js"></script>
 </body>

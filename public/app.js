@@ -142,7 +142,8 @@ sendBtn.addEventListener('click', async () => {
         lat: window.currentLat,
         lng: window.currentLng,
         message,
-        minutes
+        minutes,
+        theme: window.selectedFlashTheme || 'night'
       })
     });
 
