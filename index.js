@@ -30,12 +30,56 @@ app.get('/vapid-public-key', (req, res) => {
 
 // Register or update a user's push subscription + location
 app.post('/register', async (req, res) => {
-  const { subscription, lat, lng } = req.body;
-  const result = await pool.query(
-    'INSERT INTO users (push_subscription, last_lat, last_lng) VALUES ($1, $2, $3) RETURNING id',
-    [JSON.stringify(subscription), lat, lng]
-  );
-  res.json({ userId: result.rows[0].id });
+  try {
+    const { subscription, lat, lng } = req.body;
+    const endpoint = subscription?.endpoint;
+
+    if (
+      !endpoint ||
+      typeof endpoint !== 'string' ||
+      !Number.isFinite(Number(lat)) ||
+      !Number.isFinite(Number(lng)) ||
+      Number(lat) < -90 ||
+      Number(lat) > 90 ||
+      Number(lng) < -180 ||
+      Number(lng) > 180
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_REGISTRATION'
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO users
+        (push_subscription, subscription_endpoint, last_lat, last_lng, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (subscription_endpoint)
+       DO UPDATE SET
+         push_subscription = EXCLUDED.push_subscription,
+         last_lat = EXCLUDED.last_lat,
+         last_lng = EXCLUDED.last_lng,
+         updated_at = NOW()
+       RETURNING id`,
+      [
+        JSON.stringify(subscription),
+        endpoint,
+        Number(lat),
+        Number(lng)
+      ]
+    );
+
+    return res.json({
+      ok: true,
+      userId: result.rows[0].id
+    });
+  } catch (error) {
+    console.error('Registration failed:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'REGISTRATION_FAILED'
+    });
+  }
 });
 
 // Send a flash broadcast to nearby users
