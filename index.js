@@ -14,6 +14,9 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+console.log('VAPID_PUBLIC_KEY length:', (process.env.VAPID_PUBLIC_KEY || '').length);
+console.log('VAPID_PRIVATE_KEY length:', (process.env.VAPID_PRIVATE_KEY || '').length);
+
 webpush.setVapidDetails(
   'mailto:you@example.com',
   process.env.VAPID_PUBLIC_KEY,
