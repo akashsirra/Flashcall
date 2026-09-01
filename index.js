@@ -4,6 +4,7 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 require('dotenv').config({ path: '.env.development.local' });
 const { Pool } = require('pg');
@@ -23,8 +24,8 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-app.get('/', (req, res) => {
-  res.send('Flashcall server is alive');
+app.get('/vapid-public-key', (req, res) => {
+  res.json({ key: process.env.VAPID_PUBLIC_KEY });
 });
 
 // Register or update a user's push subscription + location
