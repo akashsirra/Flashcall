@@ -5,29 +5,229 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flashcall</title>
 <link rel="manifest" href="/manifest.json">
+
 <style>
-  body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 0 16px; }
-  h1 { font-size: 24px; }
-  input, select, button { width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; box-sizing: border-box; }
-  button { background: #ff3b30; color: white; border: none; border-radius: 8px; }
-  #status { margin-top: 16px; color: #555; }
+  body {
+    font-family: sans-serif;
+    max-width: 400px;
+    margin: 40px auto;
+    padding: 0 16px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  input,
+  select,
+  button {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+
+  button {
+    background: #ff3b30;
+    color: white;
+    border: none;
+    border-radius: 8px;
+  }
+
+  #status {
+    margin-top: 16px;
+    color: #555;
+  }
+
+  /* Flash view */
+  #flashView {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #111;
+    color: white;
+    text-align: center;
+    padding: 40px 16px;
+    box-sizing: border-box;
+    z-index: 9999;
+  }
+
+  #flashLabel {
+    font-size: 18px;
+    margin-top: 20px;
+  }
+
+  #flashMessage {
+    font-size: 32px;
+    font-weight: bold;
+    margin: 40px 0 24px;
+    word-wrap: break-word;
+  }
+
+  #flashCountdown {
+    font-size: 64px;
+    font-weight: bold;
+    color: #ff3b30;
+  }
+
+  #flashExpired {
+    display: none;
+    font-size: 24px;
+    color: #888;
+  }
 </style>
 </head>
+
 <body>
-  <h1>⚡ Flashcall</h1>
-  <p>Send a message to everyone nearby, right now.</p>
 
-  <input type="text" id="message" placeholder="What's happening?" maxlength="100">
-  <select id="duration">
-    <option value="5">5 minutes</option>
-    <option value="15" selected>15 minutes</option>
-    <option value="30">30 minutes</option>
-    <option value="60">60 minutes</option>
-  </select>
-  <button id="sendBtn">Send Flash</button>
+  <div id="homeView">
+    <h1>⚡ Flashcall</h1>
 
-  <div id="status"></div>
+    <p>
+      Send a message to everyone nearby, right now.
+    </p>
+
+    <input
+      type="text"
+      id="message"
+      placeholder="What's happening?"
+      maxlength="100"
+    >
+
+    <select id="duration">
+      <option value="5">5 minutes</option>
+      <option value="15" selected>15 minutes</option>
+      <option value="30">30 minutes</option>
+      <option value="60">60 minutes</option>
+    </select>
+
+    <button id="sendBtn">
+      Send Flash
+    </button>
+
+    <div id="status"></div>
+  </div>
+
+
+  <!-- Flash notification view -->
+  <div id="flashView">
+
+    <div id="flashLabel">
+      ⚡ FLASH
+    </div>
+
+    <div id="flashMessage"></div>
+
+    <div id="flashCountdown"></div>
+
+    <div id="flashExpired">
+      This flash has expired.
+    </div>
+
+  </div>
+
 
   <script src="/app.js"></script>
+
+  <script>
+    const flashParams = new URLSearchParams(window.location.search);
+
+    const isFlash =
+      flashParams.get('flash') === '1';
+
+    if (isFlash) {
+
+      const message =
+        flashParams.get('message') || 'Flash nearby!';
+
+      const expiresAt =
+        new Date(flashParams.get('expiresAt'));
+
+      const homeView =
+        document.getElementById('homeView');
+
+      const flashView =
+        document.getElementById('flashView');
+
+      const flashMessage =
+        document.getElementById('flashMessage');
+
+      const countdown =
+        document.getElementById('flashCountdown');
+
+      const expired =
+        document.getElementById('flashExpired');
+
+
+      // Show flash instead of home screen.
+      homeView.style.display = 'none';
+      flashView.style.display = 'block';
+
+      flashMessage.textContent = message;
+
+
+      function updateFlash() {
+
+        const diff =
+          expiresAt.getTime() - Date.now();
+
+        if (diff <= 0) {
+
+          countdown.style.display = 'none';
+          expired.style.display = 'block';
+
+          return;
+        }
+
+        const minutes =
+          Math.floor(diff / 60000);
+
+        const seconds =
+          Math.floor((diff % 60000) / 1000);
+
+        countdown.textContent =
+          `${minutes}:${seconds
+            .toString()
+            .padStart(2, '0')}`;
+
+        setTimeout(updateFlash, 1000);
+      }
+
+
+      updateFlash();
+
+
+      /*
+       * Important:
+       *
+       * When Android Back is pressed,
+       * remove the flash state and return
+       * to the normal Flashcall home screen.
+       */
+      history.pushState(
+        { flashcallFlash: true },
+        '',
+        window.location.href
+      );
+
+      window.addEventListener(
+        'popstate',
+        () => {
+
+          flashView.style.display = 'none';
+          homeView.style.display = 'block';
+
+          // Remove the flash query parameters.
+          history.replaceState(
+            {},
+            '',
+            '/'
+          );
+        }
+      );
+    }
+  </script>
+
 </body>
 </html>
