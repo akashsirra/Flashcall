@@ -1,32 +1,30 @@
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
 
-  const title = 'Flashcall';
-
-  const options = {
-    body: data.message || 'New flash nearby',
-    data: {
-      expiresAt: data.expiresAt,
-      message: data.message || 'New flash nearby'
-    },
-    tag: 'flashcall-notification'
-  };
-
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    self.registration.showNotification('Flashcall', {
+      body: data.message || 'New flash nearby',
+      data: {
+        message: data.message || 'New flash nearby',
+        expiresAt: data.expiresAt || ''
+      },
+      tag: 'flashcall-notification'
+    })
   );
 });
-
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const data = event.notification.data || {};
-  const message = data.message || event.notification.body || 'Flash nearby!';
-  const expiresAt = data.expiresAt || '';
 
-  const flashUrl =
-    `/flash.html?message=${encodeURIComponent(message)}&expiresAt=${encodeURIComponent(expiresAt)}`;
+  const params = new URLSearchParams({
+    flash: '1',
+    message: data.message || event.notification.body || 'Flash nearby!',
+    expiresAt: data.expiresAt || ''
+  });
+
+  const url = `/?${params.toString()}`;
 
   event.waitUntil(
     (async () => {
@@ -35,31 +33,19 @@ self.addEventListener('notificationclick', (event) => {
         includeUncontrolled: true
       });
 
-      // If Flashcall is already open, reuse it.
       for (const client of clientsList) {
         if ('focus' in client) {
           await client.focus();
 
           if ('navigate' in client) {
-            await client.navigate(flashUrl);
+            await client.navigate(url);
           }
 
           return;
         }
       }
 
-      // Otherwise open Flashcall normally first.
-      const homeClient = await clients.openWindow('/');
-
-      if (homeClient) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        if ('navigate' in homeClient) {
-          await homeClient.navigate(flashUrl);
-        }
-
-        await homeClient.focus();
-      }
+      await clients.openWindow(url);
     })()
   );
 });
