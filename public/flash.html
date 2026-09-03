@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
 <title>Flashcall</title>
+
 <style>
+
   body {
     font-family: sans-serif;
     max-width: 400px;
@@ -34,51 +42,95 @@
     font-size: 24px;
     color: #888;
   }
+
 </style>
+
 </head>
 
 <body>
+
   <div id="message"></div>
+
   <div id="countdown"></div>
-  <div id="expired" style="display:none;">
+
+  <div
+    id="expired"
+    style="display:none;"
+  >
     This flash has expired.
   </div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const message = params.get('message') || 'Flash nearby!';
-    const expiresAt = new Date(params.get('expiresAt'));
 
-    document.getElementById('message').textContent = message;
+  <script>
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const message =
+      params.get('message') ||
+      'Flash nearby!';
+
+    const expiresAt =
+      new Date(
+        params.get('expiresAt')
+      );
+
+
+    document
+      .getElementById('message')
+      .textContent = message;
+
 
     function tick() {
-      const now = new Date();
-      const diff = expiresAt - now;
+
+      const now =
+        new Date();
+
+      const diff =
+        expiresAt - now;
+
 
       if (diff <= 0) {
-        document.getElementById('countdown').style.display = 'none';
-        document.getElementById('expired').style.display = 'block';
+
+        document
+          .getElementById('countdown')
+          .style.display = 'none';
+
+        document
+          .getElementById('expired')
+          .style.display = 'block';
+
         return;
       }
 
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
 
-      document.getElementById('countdown').textContent =
-        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      const minutes =
+        Math.floor(diff / 60000);
+
+      const seconds =
+        Math.floor(
+          (diff % 60000) / 1000
+        );
+
+
+      document
+        .getElementById('countdown')
+        .textContent =
+          `${minutes}:${seconds
+            .toString()
+            .padStart(2, '0')}`;
+
 
       requestAnimationFrame(tick);
     }
 
+
     tick();
 
-    // Handle Android Back button.
-    // Return to the Flashcall home screen instead of closing the app.
-    history.pushState({ flashcall: true }, '', window.location.href);
-
-    window.addEventListener('popstate', () => {
-      window.location.href = '/';
-    });
   </script>
+
 </body>
+
 </html>
