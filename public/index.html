@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
 <title>Flashcall</title>
+
 <link rel="manifest" href="/manifest.json">
 
 <style>
+
   body {
     font-family: sans-serif;
     max-width: 400px;
@@ -40,194 +48,449 @@
     color: #555;
   }
 
-  /* Flash view */
+
+  /* =========================
+     FLASH VIEW
+     ========================= */
+
   #flashView {
     display: none;
+
     position: fixed;
     inset: 0;
+
     background: #111;
     color: white;
+
     text-align: center;
+
     padding: 40px 16px;
+
     box-sizing: border-box;
+
     z-index: 9999;
   }
+
 
   #flashLabel {
     font-size: 18px;
     margin-top: 20px;
   }
 
+
   #flashMessage {
     font-size: 32px;
     font-weight: bold;
+
     margin: 40px 0 24px;
+
     word-wrap: break-word;
   }
+
 
   #flashCountdown {
     font-size: 64px;
     font-weight: bold;
+
     color: #ff3b30;
   }
 
+
   #flashExpired {
     display: none;
+
     font-size: 24px;
+
     color: #888;
   }
+
 </style>
+
 </head>
+
 
 <body>
 
-  <div id="homeView">
-    <h1>⚡ Flashcall</h1>
 
-    <p>
-      Send a message to everyone nearby, right now.
-    </p>
+<!-- =========================
+     HOME
+     ========================= -->
 
-    <input
-      type="text"
-      id="message"
-      placeholder="What's happening?"
-      maxlength="100"
-    >
+<div id="homeView">
 
-    <select id="duration">
-      <option value="5">5 minutes</option>
-      <option value="15" selected>15 minutes</option>
-      <option value="30">30 minutes</option>
-      <option value="60">60 minutes</option>
-    </select>
+  <h1>⚡ Flashcall</h1>
 
-    <button id="sendBtn">
-      Send Flash
-    </button>
+  <p>
+    Send a message to everyone nearby, right now.
+  </p>
 
-    <div id="status"></div>
+
+  <input
+    type="text"
+    id="message"
+    placeholder="What's happening?"
+    maxlength="100"
+  >
+
+
+  <select id="duration">
+
+    <option value="5">
+      5 minutes
+    </option>
+
+    <option value="15" selected>
+      15 minutes
+    </option>
+
+    <option value="30">
+      30 minutes
+    </option>
+
+    <option value="60">
+      60 minutes
+    </option>
+
+  </select>
+
+
+  <button id="sendBtn">
+    Send Flash
+  </button>
+
+
+  <div id="status"></div>
+
+</div>
+
+
+
+<!-- =========================
+     FLASH
+     ========================= -->
+
+<div id="flashView">
+
+  <div id="flashLabel">
+    ⚡ FLASH
   </div>
 
 
-  <!-- Flash notification view -->
-  <div id="flashView">
+  <div id="flashMessage"></div>
 
-    <div id="flashLabel">
-      ⚡ FLASH
-    </div>
 
-    <div id="flashMessage"></div>
+  <div id="flashCountdown"></div>
 
-    <div id="flashCountdown"></div>
 
-    <div id="flashExpired">
-      This flash has expired.
-    </div>
-
+  <div id="flashExpired">
+    This flash has expired.
   </div>
 
-
-  <script src="/app.js"></script>
-
-  <script>
-    const flashParams = new URLSearchParams(window.location.search);
-
-    const isFlash =
-      flashParams.get('flash') === '1';
-
-    if (isFlash) {
-
-      const message =
-        flashParams.get('message') || 'Flash nearby!';
-
-      const expiresAt =
-        new Date(flashParams.get('expiresAt'));
-
-      const homeView =
-        document.getElementById('homeView');
-
-      const flashView =
-        document.getElementById('flashView');
-
-      const flashMessage =
-        document.getElementById('flashMessage');
-
-      const countdown =
-        document.getElementById('flashCountdown');
-
-      const expired =
-        document.getElementById('flashExpired');
+</div>
 
 
-      // Show flash instead of home screen.
-      homeView.style.display = 'none';
-      flashView.style.display = 'block';
 
-      flashMessage.textContent = message;
+<script src="/app.js"></script>
 
 
-      function updateFlash() {
+<script>
 
-        const diff =
-          expiresAt.getTime() - Date.now();
+(function () {
 
-        if (diff <= 0) {
+  const homeView =
+    document.getElementById('homeView');
 
-          countdown.style.display = 'none';
-          expired.style.display = 'block';
+  const flashView =
+    document.getElementById('flashView');
 
-          return;
+  const flashMessage =
+    document.getElementById('flashMessage');
+
+  const countdown =
+    document.getElementById('flashCountdown');
+
+  const expired =
+    document.getElementById('flashExpired');
+
+
+  let countdownTimer = null;
+
+
+  /*
+   * Show a flash.
+   */
+  function showFlash(message, expiresAt, addHistory) {
+
+    message =
+      message || 'Flash nearby!';
+
+
+    flashMessage.textContent =
+      message;
+
+
+    countdown.style.display =
+      'block';
+
+    expired.style.display =
+      'none';
+
+
+    homeView.style.display =
+      'none';
+
+    flashView.style.display =
+      'block';
+
+
+    /*
+     * If this flash came from an already-open
+     * Flashcall window, create a real history
+     * entry so Android Back returns home.
+     */
+    if (addHistory) {
+
+      const flashUrl =
+        '/?flash=1' +
+        '&message=' +
+        encodeURIComponent(message) +
+        '&expiresAt=' +
+        encodeURIComponent(expiresAt || '');
+
+
+      history.pushState(
+        {
+          flashcallFlash: true
+        },
+        '',
+        flashUrl
+      );
+
+    }
+
+
+    const expiry =
+      new Date(expiresAt);
+
+
+    function updateCountdown() {
+
+      const diff =
+        expiry.getTime() - Date.now();
+
+
+      if (
+        !expiresAt ||
+        Number.isNaN(expiry.getTime()) ||
+        diff <= 0
+      ) {
+
+        countdown.style.display =
+          'none';
+
+        expired.style.display =
+          'block';
+
+        if (countdownTimer) {
+          clearTimeout(countdownTimer);
         }
 
-        const minutes =
-          Math.floor(diff / 60000);
-
-        const seconds =
-          Math.floor((diff % 60000) / 1000);
-
-        countdown.textContent =
-          `${minutes}:${seconds
-            .toString()
-            .padStart(2, '0')}`;
-
-        setTimeout(updateFlash, 1000);
+        return;
       }
 
 
-      updateFlash();
+      const minutes =
+        Math.floor(diff / 60000);
+
+
+      const seconds =
+        Math.floor(
+          (diff % 60000) / 1000
+        );
+
+
+      countdown.textContent =
+        `${minutes}:${seconds
+          .toString()
+          .padStart(2, '0')}`;
+
+
+      countdownTimer =
+        setTimeout(
+          updateCountdown,
+          1000
+        );
+    }
+
+
+    if (countdownTimer) {
+      clearTimeout(countdownTimer);
+    }
+
+
+    updateCountdown();
+  }
+
+
+
+  /*
+   * Handle a flash that was supplied
+   * in the URL.
+   *
+   * IMPORTANT:
+   *
+   * First turn the launch URL into "/".
+   *
+   * Then create the flash history entry.
+   *
+   * This gives Android a real HOME entry
+   * underneath the FLASH entry.
+   */
+  function handleInitialFlash() {
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+
+    if (
+      params.get('flash') !== '1'
+    ) {
+      return;
+    }
+
+
+    const message =
+      params.get('message') ||
+      'Flash nearby!';
+
+
+    const expiresAt =
+      params.get('expiresAt') ||
+      '';
+
+
+    /*
+     * The current document was launched
+     * directly at /?flash=1...
+     *
+     * Convert that current history entry
+     * into the normal home URL first.
+     */
+    history.replaceState(
+      {
+        flashcallHome: true
+      },
+      '',
+      '/'
+    );
+
+
+    /*
+     * Now add FLASH as a separate entry.
+     */
+    showFlash(
+      message,
+      expiresAt,
+      true
+    );
+  }
+
+
+
+  /*
+   * Notification click while Flashcall
+   * is already running.
+   *
+   * Service worker sends this message.
+   */
+  navigator.serviceWorker.addEventListener(
+    'message',
+    (event) => {
+
+      const data =
+        event.data || {};
+
+
+      if (
+        data.type !== 'SHOW_FLASH'
+      ) {
+        return;
+      }
+
+
+      showFlash(
+        data.message,
+        data.expiresAt,
+        true
+      );
+
+    }
+  );
+
+
+
+  /*
+   * Android/browser Back.
+   *
+   * Going from FLASH history entry
+   * back to HOME triggers this.
+   */
+  window.addEventListener(
+    'popstate',
+    () => {
+
+      if (countdownTimer) {
+        clearTimeout(countdownTimer);
+        countdownTimer = null;
+      }
+
+
+      flashView.style.display =
+        'none';
+
+
+      homeView.style.display =
+        'block';
 
 
       /*
-       * Important:
-       *
-       * When Android Back is pressed,
-       * remove the flash state and return
-       * to the normal Flashcall home screen.
+       * Make absolutely sure the app
+       * is sitting at the normal home URL.
        */
-      history.pushState(
-        { flashcallFlash: true },
-        '',
-        window.location.href
-      );
+      if (
+        window.location.pathname !== '/'
+        ||
+        window.location.search
+      ) {
 
-      window.addEventListener(
-        'popstate',
-        () => {
+        history.replaceState(
+          {
+            flashcallHome: true
+          },
+          '',
+          '/'
+        );
 
-          flashView.style.display = 'none';
-          homeView.style.display = 'block';
+      }
 
-          // Remove the flash query parameters.
-          history.replaceState(
-            {},
-            '',
-            '/'
-          );
-        }
-      );
     }
-  </script>
+  );
+
+
+
+  /*
+   * Handle notification launch.
+   */
+  handleInitialFlash();
+
+
+})();
+
+</script>
+
 
 </body>
+
 </html>
