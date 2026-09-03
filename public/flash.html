@@ -16,27 +16,33 @@
     min-height: 100vh;
     box-sizing: border-box;
   }
+
   #message {
     font-size: 28px;
     font-weight: bold;
     margin: 24px 0;
   }
+
   #countdown {
     font-size: 64px;
     font-weight: bold;
     color: #ff3b30;
     margin: 32px 0;
   }
+
   #expired {
     font-size: 24px;
     color: #888;
   }
 </style>
 </head>
+
 <body>
   <div id="message"></div>
   <div id="countdown"></div>
-  <div id="expired" style="display:none;">This flash has expired.</div>
+  <div id="expired" style="display:none;">
+    This flash has expired.
+  </div>
 
   <script>
     const params = new URLSearchParams(window.location.search);
@@ -57,6 +63,7 @@
 
       const minutes = Math.floor(diff / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
+
       document.getElementById('countdown').textContent =
         `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
@@ -64,6 +71,14 @@
     }
 
     tick();
+
+    // Handle Android Back button.
+    // Return to the Flashcall home screen instead of closing the app.
+    history.pushState({ flashcall: true }, '', window.location.href);
+
+    window.addEventListener('popstate', () => {
+      window.location.href = '/';
+    });
   </script>
 </body>
 </html>
